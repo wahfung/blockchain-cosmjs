@@ -43,7 +43,7 @@ class Blockchain {
     this.chain = [this.createGenesisBlock()];
     this.difficulty = 4;
     this.pendingTransactions = [];
-    this.miningReward = 50; // 修改挖矿奖励从100到50
+    this.miningReward = 50;
     this.dataDir = path.join(process.cwd(), 'data');
     
     // 如果数据目录不存在则创建
@@ -64,13 +64,35 @@ class Blockchain {
   }
 
   minePendingTransactions(miningRewardAddress) {
-    // 添加挖矿奖励交易
-    this.pendingTransactions.push({
-      fromAddress: null,
-      toAddress: miningRewardAddress,
-      amount: this.miningReward,
-      timestamp: Date.now()
-    });
+    console.log('开始挖矿过程...');
+    
+    // 确保待处理交易中没有重复的挖矿奖励交易
+    const existingRewardTx = this.pendingTransactions.find(tx => 
+      tx.fromAddress === null && tx.toAddress === miningRewardAddress
+    );
+    
+    // 检查是否有待处理的交易
+    const hasPendingTx = this.pendingTransactions.length > 0;
+    
+    // 清除所有现有的矿工奖励交易（以防有多个）
+    this.pendingTransactions = this.pendingTransactions.filter(tx => 
+      !(tx.fromAddress === null && tx.amount === this.miningReward)
+    );
+
+    // 只有在没有待处理交易或server.js中没有添加过奖励的情况下才添加奖励交易
+    if (!existingRewardTx) {
+      // 添加挖矿奖励交易
+      this.pendingTransactions.push({
+        fromAddress: null,
+        toAddress: miningRewardAddress,
+        amount: this.miningReward,
+        timestamp: Date.now()
+      });
+      
+      console.log(`已添加挖矿奖励交易：${this.miningReward} 代币将发送给 ${miningRewardAddress}`);
+    } else {
+      console.log('已存在挖矿奖励交易，不再重复添加');
+    }
 
     // 创建新区块并挖矿
     const block = new Block(
@@ -84,10 +106,14 @@ class Blockchain {
 
     block.mineBlock();
     console.log('区块挖矿成功!');
-    console.log(`挖矿奖励 ${this.miningReward} 代币已发送到地址: ${miningRewardAddress}`);
     
-    // 将区块添加到链中并重置待处理交易
+    // 将区块添加到链中
     this.chain.push(block);
+    
+    console.log(`挖矿奖励 ${this.miningReward} 代币已发送到地址: ${miningRewardAddress}`);
+    console.log(`区块中包含 ${block.transactions.length} 笔交易`);
+    
+    // 重置待处理交易
     this.pendingTransactions = [];
     
     // 保存更新后的链到文件
