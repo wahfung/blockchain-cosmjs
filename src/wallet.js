@@ -21,13 +21,13 @@ class Wallet {
   async createWallet(name, password) {
     try {
       // 生成24个助记词
-      const wallet = await DirectSecp256k1HdWallet.generate(24, {
+      const walletInstance = await DirectSecp256k1HdWallet.generate(24, {
         prefix: 'cosmos',
         hdPaths: [makeCosmoshubPath(0)]
       });
       
-      const mnemonic = wallet.mnemonic;
-      const [account] = await wallet.getAccounts();
+      const mnemonic = walletInstance.mnemonic;
+      const [account] = await walletInstance.getAccounts();
       
       // 使用加密保存钱包到文件
       const walletData = {
@@ -92,7 +92,8 @@ class Wallet {
         hdPaths: [makeCosmoshubPath(0)]
       });
       
-      const [account] = await wallet.getAccounts();
+      // 使用this.wallet而不是wallet变量
+      const [account] = await this.wallet.getAccounts();
       this.address = account.address;
       
       console.log(`钱包加载成功，地址: ${this.address}`);
