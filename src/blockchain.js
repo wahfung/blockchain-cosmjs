@@ -34,7 +34,7 @@ class Block {
       this.hash = this.calculateHash();
     }
     
-    console.log(`Block mined: ${this.hash}`);
+    console.log(`区块已挖出: ${this.hash}`);
   }
 }
 
@@ -46,12 +46,12 @@ class Blockchain {
     this.miningReward = 100;
     this.dataDir = path.join(process.cwd(), 'data');
     
-    // Create data directory if it doesn't exist
+    // 如果数据目录不存在则创建
     if (!fs.existsSync(this.dataDir)) {
       fs.mkdirSync(this.dataDir, { recursive: true });
     }
     
-    // Try to load existing chain from file
+    // 尝试从文件加载现有链
     this.loadChain();
   }
 
@@ -64,7 +64,7 @@ class Blockchain {
   }
 
   minePendingTransactions(miningRewardAddress) {
-    // Add mining reward transaction
+    // 添加挖矿奖励交易
     this.pendingTransactions.push({
       fromAddress: null,
       toAddress: miningRewardAddress,
@@ -72,7 +72,7 @@ class Blockchain {
       timestamp: Date.now()
     });
 
-    // Create new block with all pending transactions and mine it
+    // 创建新区块并挖矿
     const block = new Block(
       this.chain.length,
       Date.now(),
@@ -83,37 +83,37 @@ class Blockchain {
     );
 
     block.mineBlock();
-    console.log('Block successfully mined!');
+    console.log('区块挖矿成功!');
     
-    // Add block to chain and reset pending transactions
+    // 将区块添加到链中并重置待处理交易
     this.chain.push(block);
     this.pendingTransactions = [];
     
-    // Save updated chain to file
+    // 保存更新后的链到文件
     this.saveChain();
     
     return block;
   }
 
   addTransaction(transaction) {
-    // Basic validation
+    // 基本验证
     if (!transaction.fromAddress || !transaction.toAddress) {
-      throw new Error('Transaction must include from and to address');
+      throw new Error('交易必须包含发送地址和接收地址');
     }
 
     if (transaction.amount <= 0) {
-      throw new Error('Transaction amount should be positive');
+      throw new Error('交易金额必须为正数');
     }
 
-    // Check if sender has enough balance (except for mining rewards where fromAddress is null)
+    // 检查发送者是否有足够的余额（挖矿奖励除外，其fromAddress为null）
     if (transaction.fromAddress !== null) {
       const senderBalance = this.getBalanceOfAddress(transaction.fromAddress);
       if (senderBalance < transaction.amount) {
-        throw new Error('Not enough balance');
+        throw new Error('余额不足');
       }
     }
 
-    // Add timestamp if not present
+    // 如果没有时间戳则添加
     if (!transaction.timestamp) {
       transaction.timestamp = Date.now();
     }
@@ -145,12 +145,12 @@ class Blockchain {
       const currentBlock = this.chain[i];
       const previousBlock = this.chain[i - 1];
 
-      // Check if hash is valid
+      // 检查区块哈希是否有效
       if (currentBlock.hash !== currentBlock.calculateHash()) {
         return false;
       }
 
-      // Check if points to correct previous hash
+      // 检查是否指向正确的前一个哈希
       if (currentBlock.previousHash !== previousBlock.hash) {
         return false;
       }
@@ -172,7 +172,7 @@ class Blockchain {
         const chainData = fs.readFileSync(chainFile, 'utf8');
         const loadedChain = JSON.parse(chainData);
         
-        // Restore proper prototypes
+        // 恢复适当的原型
         this.chain = loadedChain.map(blockData => {
           const block = new Block(
             blockData.index,
@@ -186,9 +186,9 @@ class Blockchain {
           return block;
         });
         
-        console.log(`Blockchain loaded with ${this.chain.length} blocks`);
+        console.log(`已加载区块链，共有 ${this.chain.length} 个区块`);
       } catch (error) {
-        console.error('Error loading blockchain:', error);
+        console.error('加载区块链时出错:', error);
       }
     }
   }
