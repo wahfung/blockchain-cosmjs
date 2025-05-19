@@ -50,16 +50,9 @@ app.post('/mine', (req, res) => {
     return res.status(400).json({ error: '需要矿工地址' });
   }
   
-  // 检查是否有待处理交易
-  if (myBlockchain.pendingTransactions.length === 0) {
-    // 如果没有交易，添加一个虚拟交易（挖矿奖励）
-    myBlockchain.pendingTransactions.push({
-      fromAddress: null,
-      toAddress: minerAddress,
-      amount: myBlockchain.miningReward,
-      timestamp: Date.now()
-    });
-  }
+  // 区块链的minePendingTransactions方法现在会处理奖励逻辑，不需要在这里添加
+  console.log(`开始挖矿，矿工地址: ${minerAddress}`);
+  console.log(`当前待处理交易数量: ${myBlockchain.pendingTransactions.length}`);
   
   const newBlock = myBlockchain.minePendingTransactions(minerAddress);
   
