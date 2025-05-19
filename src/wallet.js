@@ -1,0 +1,197 @@
+import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
+import { makeCosmoshubPath } from '@cosmjs/amino';
+import { toHex } from '@cosmjs/encoding';
+import { sha256 } from '@cosmjs/crypto';
+import fs from 'fs';
+import path from 'path';
+
+class Wallet {
+  constructor() {
+    this.wallet = null;
+    this.address = null;
+    this.walletDir = path.join(process.cwd(), 'wallets');
+    
+    // Create wallet directory if it doesn't exist
+    if (!fs.existsSync(this.walletDir)) {
+      fs.mkdirSync(this.walletDir, { recursive: true });
+    }
+  }
+
+  async createWallet(name, password) {
+    try {
+      // Generate a 24-word mnemonic
+      const wallet = await DirectSecp256k1HdWallet.generate(24, {
+        prefix: 'cosmos',
+        hdPaths: [makeCosmoshubPath(0)]
+      });
+      
+      const mnemonic = wallet.mnemonic;
+      const [account] = await wallet.getAccounts();
+      
+      // Save wallet to file with encryption
+      const walletData = {
+        address: account.address,
+        pubkey: toHex(account.pubkey),
+        mnemonic: mnemonic,
+        createdAt: Date.now()
+      };
+      
+      const walletKey = this._generateWalletKey(name, password);
+      const walletPath = path.join(this.walletDir, `${walletKey}.json`);
+      
+      // Encrypt wallet data before storing
+      const encryptedData = this._encryptWalletData(walletData, password);
+      fs.writeFileSync(walletPath, JSON.stringify(encryptedData, null, 2));
+      
+      return {
+        address: account.address,
+        mnemonic: mnemonic,
+        path: walletPath
+      };
+    } catch (error) {
+      console.error('Error creating wallet:', error);
+      throw error;
+    }
+  }
+
+  async loadWallet(name, password) {
+    try {
+      const walletKey = this._generateWalletKey(name, password);
+      const walletPath = path.join(this.walletDir, `${walletKey}.json`);
+      
+      if (!fs.existsSync(walletPath)) {
+        throw new Error('Wallet not found');
+      }
+      
+      const encryptedData = JSON.parse(fs.readFileSync(walletPath, 'utf8'));
+      const walletData = this._decryptWalletData(encryptedData, password);
+      
+      // Create wallet from mnemonic
+      this.wallet = await DirectSecp256k1HdWallet.fromMnemonic(walletData.mnemonic, {
+        prefix: 'cosmos',
+        hdPaths: [makeCosmoshubPath(0)]
+      });
+      
+      const [account] = await this.wallet.getAccounts();
+      this.address = account.address;
+      
+      return {
+        address: account.address,
+        pubkey: account.pubkey
+      };
+    } catch (error) {
+      console.error('Error loading wallet:', error);
+      throw error;
+    }
+  }
+
+  async listWallets() {
+    try {
+      if (!fs.existsSync(this.walletDir)) return [];
+      
+      const files = fs.readdirSync(this.walletDir);
+      return files.filter(file => file.endsWith('.json'));
+    } catch (error) {
+      console.error('Error listing wallets:', error);
+      throw error;
+    }
+  }
+
+  async signTransaction(transaction) {
+    if (!this.wallet) {
+      throw new Error('No wallet loaded');
+    }
+    
+    try {
+      const [account] = await this.wallet.getAccounts();
+      const txData = JSON.stringify(transaction);
+      const signDoc = new TextEncoder().encode(txData);
+      
+      const { signature } = await this.wallet.signDirect(account.address, signDoc);
+      
+      return {
+        transaction,
+        signature: toHex(signature),
+        pubkey: toHex(account.pubkey)
+      };
+    } catch (error) {
+      console.error('Error signing transaction:', error);
+      throw error;
+    }
+  }
+
+  async createTransaction(toAddress, amount) {
+    if (!this.wallet || !this.address) {
+      throw new Error('No wallet loaded');
+    }
+    
+    if (!toAddress) {
+      throw new Error('Recipient address is required');
+    }
+    
+    if (amount <= 0) {
+      throw new Error('Amount must be positive');
+    }
+    
+    const transaction = {
+      fromAddress: this.address,
+      toAddress: toAddress,
+      amount: amount,
+      timestamp: Date.now()
+    };
+    
+    return await this.signTransaction(transaction);
+  }
+
+  getAddress() {
+    return this.address;
+  }
+
+  // Private methods for wallet security
+  _generateWalletKey(name, password) {
+    const data = `${name}-${password}`;
+    return toHex(sha256(new TextEncoder().encode(data))).substring(0, 16);
+  }
+
+  _encryptWalletData(data, password) {
+    // Simple encryption for demonstration purposes
+    // In a production environment, use stronger encryption methods
+    const encryptionKey = toHex(sha256(new TextEncoder().encode(password)));
+    const jsonData = JSON.stringify(data);
+    
+    // XOR encryption as a simple example
+    let encrypted = '';
+    for (let i = 0; i < jsonData.length; i++) {
+      const charCode = jsonData.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length);
+      encrypted += String.fromCharCode(charCode);
+    }
+    
+    return {
+      data: Buffer.from(encrypted).toString('base64'),
+      checksum: toHex(sha256(new TextEncoder().encode(jsonData)))
+    };
+  }
+
+  _decryptWalletData(encryptedData, password) {
+    // Simple decryption for demonstration purposes
+    const encryptionKey = toHex(sha256(new TextEncoder().encode(password)));
+    const encryptedStr = Buffer.from(encryptedData.data, 'base64').toString();
+    
+    // XOR decryption
+    let decrypted = '';
+    for (let i = 0; i < encryptedStr.length; i++) {
+      const charCode = encryptedStr.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length);
+      decrypted += String.fromCharCode(charCode);
+    }
+    
+    // Verify checksum
+    const checksum = toHex(sha256(new TextEncoder().encode(decrypted)));
+    if (checksum !== encryptedData.checksum) {
+      throw new Error('Invalid password or corrupted wallet file');
+    }
+    
+    return JSON.parse(decrypted);
+  }
+}
+
+export { Wallet };
