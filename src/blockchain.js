@@ -43,7 +43,7 @@ class Blockchain {
     this.chain = [this.createGenesisBlock()];
     this.difficulty = 4;
     this.pendingTransactions = [];
-    this.miningReward = 100;
+    this.miningReward = 50; // 修改挖矿奖励从100到50
     this.dataDir = path.join(process.cwd(), 'data');
     
     // 如果数据目录不存在则创建
@@ -84,6 +84,7 @@ class Blockchain {
 
     block.mineBlock();
     console.log('区块挖矿成功!');
+    console.log(`挖矿奖励 ${this.miningReward} 代币已发送到地址: ${miningRewardAddress}`);
     
     // 将区块添加到链中并重置待处理交易
     this.chain.push(block);
