@@ -77,7 +77,7 @@ class Wallet {
       
       return {
         address: account.address,
-        pubkey: account.pubkey
+        pubkey: toHex(account.pubkey)
       };
     } catch (error) {
       console.error('加载钱包时出错:', error);
@@ -107,7 +107,8 @@ class Wallet {
       const txData = JSON.stringify(transaction);
       const signDoc = new TextEncoder().encode(txData);
       
-      const { signature } = await this.wallet.signDirect(account.address, signDoc);
+      // 修复：直接使用签名方法，确保返回正确的签名
+      const signature = await this.wallet.sign(account.address, signDoc);
       
       return {
         transaction,
