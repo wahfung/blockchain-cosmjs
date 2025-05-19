@@ -11,7 +11,7 @@ class Wallet {
     this.address = null;
     this.walletDir = path.join(process.cwd(), 'wallets');
     
-    // Create wallet directory if it doesn't exist
+    // 如果钱包目录不存在则创建
     if (!fs.existsSync(this.walletDir)) {
       fs.mkdirSync(this.walletDir, { recursive: true });
     }
@@ -19,7 +19,7 @@ class Wallet {
 
   async createWallet(name, password) {
     try {
-      // Generate a 24-word mnemonic
+      // 生成24个助记词
       const wallet = await DirectSecp256k1HdWallet.generate(24, {
         prefix: 'cosmos',
         hdPaths: [makeCosmoshubPath(0)]
@@ -28,7 +28,7 @@ class Wallet {
       const mnemonic = wallet.mnemonic;
       const [account] = await wallet.getAccounts();
       
-      // Save wallet to file with encryption
+      // 使用加密保存钱包到文件
       const walletData = {
         address: account.address,
         pubkey: toHex(account.pubkey),
@@ -39,7 +39,7 @@ class Wallet {
       const walletKey = this._generateWalletKey(name, password);
       const walletPath = path.join(this.walletDir, `${walletKey}.json`);
       
-      // Encrypt wallet data before storing
+      // 在存储之前加密钱包数据
       const encryptedData = this._encryptWalletData(walletData, password);
       fs.writeFileSync(walletPath, JSON.stringify(encryptedData, null, 2));
       
@@ -49,7 +49,7 @@ class Wallet {
         path: walletPath
       };
     } catch (error) {
-      console.error('Error creating wallet:', error);
+      console.error('创建钱包时出错:', error);
       throw error;
     }
   }
@@ -60,13 +60,13 @@ class Wallet {
       const walletPath = path.join(this.walletDir, `${walletKey}.json`);
       
       if (!fs.existsSync(walletPath)) {
-        throw new Error('Wallet not found');
+        throw new Error('找不到钱包');
       }
       
       const encryptedData = JSON.parse(fs.readFileSync(walletPath, 'utf8'));
       const walletData = this._decryptWalletData(encryptedData, password);
       
-      // Create wallet from mnemonic
+      // 从助记词创建钱包
       this.wallet = await DirectSecp256k1HdWallet.fromMnemonic(walletData.mnemonic, {
         prefix: 'cosmos',
         hdPaths: [makeCosmoshubPath(0)]
@@ -80,7 +80,7 @@ class Wallet {
         pubkey: account.pubkey
       };
     } catch (error) {
-      console.error('Error loading wallet:', error);
+      console.error('加载钱包时出错:', error);
       throw error;
     }
   }
@@ -92,14 +92,14 @@ class Wallet {
       const files = fs.readdirSync(this.walletDir);
       return files.filter(file => file.endsWith('.json'));
     } catch (error) {
-      console.error('Error listing wallets:', error);
+      console.error('列出钱包时出错:', error);
       throw error;
     }
   }
 
   async signTransaction(transaction) {
     if (!this.wallet) {
-      throw new Error('No wallet loaded');
+      throw new Error('没有加载钱包');
     }
     
     try {
@@ -115,22 +115,22 @@ class Wallet {
         pubkey: toHex(account.pubkey)
       };
     } catch (error) {
-      console.error('Error signing transaction:', error);
+      console.error('签名交易时出错:', error);
       throw error;
     }
   }
 
   async createTransaction(toAddress, amount) {
     if (!this.wallet || !this.address) {
-      throw new Error('No wallet loaded');
+      throw new Error('没有加载钱包');
     }
     
     if (!toAddress) {
-      throw new Error('Recipient address is required');
+      throw new Error('需要接收方地址');
     }
     
     if (amount <= 0) {
-      throw new Error('Amount must be positive');
+      throw new Error('金额必须为正数');
     }
     
     const transaction = {
@@ -147,19 +147,19 @@ class Wallet {
     return this.address;
   }
 
-  // Private methods for wallet security
+  // 钱包安全的私有方法
   _generateWalletKey(name, password) {
     const data = `${name}-${password}`;
     return toHex(sha256(new TextEncoder().encode(data))).substring(0, 16);
   }
 
   _encryptWalletData(data, password) {
-    // Simple encryption for demonstration purposes
-    // In a production environment, use stronger encryption methods
+    // 简单加密用于演示目的
+    // 在生产环境中，使用更强的加密方法
     const encryptionKey = toHex(sha256(new TextEncoder().encode(password)));
     const jsonData = JSON.stringify(data);
     
-    // XOR encryption as a simple example
+    // XOR加密作为简单示例
     let encrypted = '';
     for (let i = 0; i < jsonData.length; i++) {
       const charCode = jsonData.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length);
@@ -173,21 +173,21 @@ class Wallet {
   }
 
   _decryptWalletData(encryptedData, password) {
-    // Simple decryption for demonstration purposes
+    // 简单解密用于演示目的
     const encryptionKey = toHex(sha256(new TextEncoder().encode(password)));
     const encryptedStr = Buffer.from(encryptedData.data, 'base64').toString();
     
-    // XOR decryption
+    // XOR解密
     let decrypted = '';
     for (let i = 0; i < encryptedStr.length; i++) {
       const charCode = encryptedStr.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length);
       decrypted += String.fromCharCode(charCode);
     }
     
-    // Verify checksum
+    // 验证校验和
     const checksum = toHex(sha256(new TextEncoder().encode(decrypted)));
     if (checksum !== encryptedData.checksum) {
-      throw new Error('Invalid password or corrupted wallet file');
+      throw new Error('密码无效或钱包文件已损坏');
     }
     
     return JSON.parse(decrypted);
