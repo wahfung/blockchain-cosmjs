@@ -175,8 +175,19 @@ app.post('/wallet/transaction', async (req, res) => {
   
   try {
     const wallet = new Wallet();
-    await wallet.loadWallet(name, password);
     
+    // 修复：确保loadWallet方法正确返回并设置wallet.address
+    const loadedWallet = await wallet.loadWallet(name, password);
+    if (!loadedWallet || !loadedWallet.address) {
+      throw new Error('钱包加载失败');
+    }
+    
+    // 确保wallet中的address成员变量已经设置
+    if (!wallet.getAddress()) {
+      throw new Error('钱包地址未设置');
+    }
+    
+    // 调用createTransaction创建新交易
     const signedTx = await wallet.createTransaction(
       toAddress,
       parseFloat(amount)
@@ -187,8 +198,9 @@ app.post('/wallet/transaction', async (req, res) => {
       transaction: signedTx
     });
   } catch (error) {
+    console.error('交易创建失败:', error);
     res.status(400).json({
-      error: error.message
+      error: error.message || '交易创建失败'
     });
   }
 });
