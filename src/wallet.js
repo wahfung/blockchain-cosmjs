@@ -14,6 +14,7 @@ class Wallet {
     // 如果钱包目录不存在则创建
     if (!fs.existsSync(this.walletDir)) {
       fs.mkdirSync(this.walletDir, { recursive: true });
+      console.log(`已创建钱包目录: ${this.walletDir}`);
     }
   }
 
@@ -39,9 +40,15 @@ class Wallet {
       const walletKey = this._generateWalletKey(name, password);
       const walletPath = path.join(this.walletDir, `${walletKey}.json`);
       
+      console.log(`创建钱包: ${name}, 文件名: ${walletKey}.json`);
+      
       // 在存储之前加密钱包数据
       const encryptedData = this._encryptWalletData(walletData, password);
       fs.writeFileSync(walletPath, JSON.stringify(encryptedData, null, 2));
+      
+      // 输出调试信息
+      console.log(`钱包文件已保存到: ${walletPath}`);
+      console.log(`钱包地址: ${account.address}`);
       
       return {
         address: account.address,
@@ -59,12 +66,25 @@ class Wallet {
       const walletKey = this._generateWalletKey(name, password);
       const walletPath = path.join(this.walletDir, `${walletKey}.json`);
       
-      if (!fs.existsSync(walletPath)) {
-        throw new Error('找不到钱包');
+      console.log(`尝试加载钱包文件: ${walletPath}`);
+      
+      // 列出钱包目录中的所有文件进行调试
+      if (fs.existsSync(this.walletDir)) {
+        const files = fs.readdirSync(this.walletDir);
+        console.log('钱包目录中的文件:', files);
       }
       
-      const encryptedData = JSON.parse(fs.readFileSync(walletPath, 'utf8'));
+      if (!fs.existsSync(walletPath)) {
+        throw new Error(`找不到钱包文件: ${walletPath}`);
+      }
+      
+      const fileContent = fs.readFileSync(walletPath, 'utf8');
+      console.log(`钱包文件存在，大小: ${fileContent.length} 字节`);
+      
+      const encryptedData = JSON.parse(fileContent);
       const walletData = this._decryptWalletData(encryptedData, password);
+      
+      console.log('钱包数据解密成功');
       
       // 从助记词创建钱包
       this.wallet = await DirectSecp256k1HdWallet.fromMnemonic(walletData.mnemonic, {
@@ -72,24 +92,30 @@ class Wallet {
         hdPaths: [makeCosmoshubPath(0)]
       });
       
-      const [account] = await this.wallet.getAccounts();
+      const [account] = await wallet.getAccounts();
       this.address = account.address;
+      
+      console.log(`钱包加载成功，地址: ${this.address}`);
       
       return {
         address: account.address,
         pubkey: toHex(account.pubkey)
       };
     } catch (error) {
-      console.error('加载钱包时出错:', error);
+      console.error(`加载钱包 ${name} 时出错:`, error);
       throw error;
     }
   }
 
   async listWallets() {
     try {
-      if (!fs.existsSync(this.walletDir)) return [];
+      if (!fs.existsSync(this.walletDir)) {
+        console.log(`钱包目录不存在: ${this.walletDir}`);
+        return [];
+      }
       
       const files = fs.readdirSync(this.walletDir);
+      console.log(`找到 ${files.length} 个钱包文件`);
       return files.filter(file => file.endsWith('.json'));
     } catch (error) {
       console.error('列出钱包时出错:', error);
@@ -151,7 +177,9 @@ class Wallet {
   // 钱包安全的私有方法
   _generateWalletKey(name, password) {
     const data = `${name}-${password}`;
-    return toHex(sha256(new TextEncoder().encode(data))).substring(0, 16);
+    const key = toHex(sha256(new TextEncoder().encode(data))).substring(0, 16);
+    console.log(`生成钱包密钥: ${key} (来自 ${name})`);
+    return key;
   }
 
   _encryptWalletData(data, password) {
