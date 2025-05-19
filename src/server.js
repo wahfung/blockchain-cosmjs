@@ -4,25 +4,25 @@ import { Blockchain } from './blockchain.js';
 import { Wallet } from './wallet.js';
 import dotenv from 'dotenv';
 
-// Load environment variables
+// 加载环境变量
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// 中间件
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Initialize blockchain
+// 初始化区块链
 const myBlockchain = new Blockchain();
 
-// API endpoints
+// API端点
 app.get('/', (req, res) => {
-  res.send('CosmJS Blockchain API is running');
+  res.send('CosmJS区块链API正在运行');
 });
 
-// Get the entire blockchain
+// 获取整个区块链
 app.get('/blockchain', (req, res) => {
   res.json({
     chain: myBlockchain.chain,
@@ -31,28 +31,28 @@ app.get('/blockchain', (req, res) => {
   });
 });
 
-// Get a specific block by index
+// 根据索引获取特定区块
 app.get('/block/:index', (req, res) => {
   const blockIndex = parseInt(req.params.index);
   
   if (blockIndex < 0 || blockIndex >= myBlockchain.chain.length) {
-    return res.status(404).json({ error: 'Block not found' });
+    return res.status(404).json({ error: '找不到区块' });
   }
   
   res.json(myBlockchain.chain[blockIndex]);
 });
 
-// Mine pending transactions
+// 挖掘待处理交易
 app.post('/mine', (req, res) => {
   const { minerAddress } = req.body;
   
   if (!minerAddress) {
-    return res.status(400).json({ error: 'Miner address is required' });
+    return res.status(400).json({ error: '需要矿工地址' });
   }
   
-  // Check if there are pending transactions
+  // 检查是否有待处理交易
   if (myBlockchain.pendingTransactions.length === 0) {
-    // Add a dummy transaction if none exist (mining reward)
+    // 如果没有交易，添加一个虚拟交易（挖矿奖励）
     myBlockchain.pendingTransactions.push({
       fromAddress: null,
       toAddress: minerAddress,
@@ -64,23 +64,23 @@ app.post('/mine', (req, res) => {
   const newBlock = myBlockchain.minePendingTransactions(minerAddress);
   
   res.json({
-    message: 'Block mined successfully',
+    message: '区块挖矿成功',
     block: newBlock
   });
 });
 
-// Create a new transaction
+// 创建新交易
 app.post('/transaction', async (req, res) => {
   const { fromAddress, toAddress, amount, signature, pubkey } = req.body;
   
   if (!fromAddress || !toAddress || !amount || !signature || !pubkey) {
     return res.status(400).json({
-      error: 'Missing required transaction parameters'
+      error: '缺少必要的交易参数'
     });
   }
   
   try {
-    // Create transaction object
+    // 创建交易对象
     const transaction = {
       fromAddress,
       toAddress,
@@ -90,13 +90,13 @@ app.post('/transaction', async (req, res) => {
       pubkey
     };
     
-    // Verify signature here (optional - you can add this functionality)
+    // 在这里验证签名（可选 - 可以添加此功能）
     
-    // Add transaction to pending transactions
+    // 将交易添加到待处理交易
     const txIndex = myBlockchain.addTransaction(transaction);
     
     res.json({
-      message: 'Transaction added successfully',
+      message: '交易添加成功',
       transactionIndex: txIndex,
       pendingTransactions: myBlockchain.pendingTransactions.length
     });
@@ -107,7 +107,7 @@ app.post('/transaction', async (req, res) => {
   }
 });
 
-// Get balance of an address
+// 获取地址余额
 app.get('/balance/:address', (req, res) => {
   const address = req.params.address;
   const balance = myBlockchain.getBalanceOfAddress(address);
@@ -118,12 +118,12 @@ app.get('/balance/:address', (req, res) => {
   });
 });
 
-// Create a new wallet
+// 创建新钱包
 app.post('/wallet', async (req, res) => {
   const { name, password } = req.body;
   
   if (!name || !password) {
-    return res.status(400).json({ error: 'Name and password are required' });
+    return res.status(400).json({ error: '需要名称和密码' });
   }
   
   try {
@@ -131,7 +131,7 @@ app.post('/wallet', async (req, res) => {
     const newWallet = await wallet.createWallet(name, password);
     
     res.json({
-      message: 'Wallet created successfully',
+      message: '钱包创建成功',
       address: newWallet.address,
       mnemonic: newWallet.mnemonic
     });
@@ -142,12 +142,12 @@ app.post('/wallet', async (req, res) => {
   }
 });
 
-// Load a wallet
+// 加载钱包
 app.post('/wallet/load', async (req, res) => {
   const { name, password } = req.body;
   
   if (!name || !password) {
-    return res.status(400).json({ error: 'Name and password are required' });
+    return res.status(400).json({ error: '需要名称和密码' });
   }
   
   try {
@@ -155,7 +155,7 @@ app.post('/wallet/load', async (req, res) => {
     const loadedWallet = await wallet.loadWallet(name, password);
     
     res.json({
-      message: 'Wallet loaded successfully',
+      message: '钱包加载成功',
       address: loadedWallet.address
     });
   } catch (error) {
@@ -165,12 +165,12 @@ app.post('/wallet/load', async (req, res) => {
   }
 });
 
-// Create and sign a transaction
+// 创建并签名交易
 app.post('/wallet/transaction', async (req, res) => {
   const { name, password, toAddress, amount } = req.body;
   
   if (!name || !password || !toAddress || !amount) {
-    return res.status(400).json({ error: 'Missing required parameters' });
+    return res.status(400).json({ error: '缺少必要参数' });
   }
   
   try {
@@ -183,7 +183,7 @@ app.post('/wallet/transaction', async (req, res) => {
     );
     
     res.json({
-      message: 'Transaction created and signed',
+      message: '交易已创建并签名',
       transaction: signedTx
     });
   } catch (error) {
@@ -193,7 +193,7 @@ app.post('/wallet/transaction', async (req, res) => {
   }
 });
 
-// List all wallets
+// 列出所有钱包
 app.get('/wallets', async (req, res) => {
   try {
     const wallet = new Wallet();
@@ -209,7 +209,7 @@ app.get('/wallets', async (req, res) => {
   }
 });
 
-// Check if blockchain is valid
+// 检查区块链是否有效
 app.get('/validate', (req, res) => {
   const isValid = myBlockchain.isChainValid();
   
@@ -218,10 +218,10 @@ app.get('/validate', (req, res) => {
   });
 });
 
-// Start the server
+// 启动服务器
 app.listen(PORT, () => {
-  console.log(`CosmJS Blockchain API running on port ${PORT}`);
-  console.log(`Genesis block created: ${JSON.stringify(myBlockchain.chain[0])}`);
+  console.log(`CosmJS区块链API运行在端口 ${PORT}`);
+  console.log(`创世区块已创建: ${JSON.stringify(myBlockchain.chain[0])}`);
 });
 
 export { app };
