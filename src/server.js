@@ -174,33 +174,40 @@ app.post('/wallet/transaction', async (req, res) => {
   }
   
   try {
+    // 创建钱包实例
     const wallet = new Wallet();
     
-    // 修复：确保loadWallet方法正确返回并设置wallet.address
-    const loadedWallet = await wallet.loadWallet(name, password);
-    if (!loadedWallet || !loadedWallet.address) {
-      throw new Error('钱包加载失败');
+    // 加载钱包
+    console.log('正在加载钱包...');
+    await wallet.loadWallet(name, password);
+    
+    // 验证钱包地址是否已设置
+    const walletAddress = wallet.getAddress();
+    if (!walletAddress) {
+      console.error('钱包地址未设置');
+      throw new Error('钱包加载失败：地址未设置');
     }
     
-    // 确保wallet中的address成员变量已经设置
-    if (!wallet.getAddress()) {
-      throw new Error('钱包地址未设置');
-    }
+    console.log(`钱包地址: ${walletAddress}`);
     
-    // 调用createTransaction创建新交易
+    // 创建交易
+    console.log(`正在创建交易到 ${toAddress}，金额: ${amount}`);
     const signedTx = await wallet.createTransaction(
       toAddress,
       parseFloat(amount)
     );
     
+    console.log('交易已签名:', signedTx);
+    
+    // 返回签名后的交易
     res.json({
       message: '交易已创建并签名',
       transaction: signedTx
     });
   } catch (error) {
-    console.error('交易创建失败:', error);
+    console.error('创建交易失败:', error);
     res.status(400).json({
-      error: error.message || '交易创建失败'
+      error: error.message || '创建交易失败，请检查参数和钱包'
     });
   }
 });
